@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>db://prep — DBMS for Interviews &amp; OA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#12161a;
+  --bg-panel:#181d22;
+  --bg-raised:#20262c;
+  --line:#2b333a;
+  --line-soft:#222a30;
+  --teal:#5fd0c0;
+  --teal-dim:#2e6b62;
+  --teal-glow:rgba(95,208,192,0.15);
+  --text:#e4ece8;
+  --text-dim:#93a3a8;
+  --text-faint:#5f7278;
+  --green:#7ec98f;
+  --red:#e3785c;
+  --amber:#e3b45c;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  min-height:100vh;
+  background-image:
+    radial-gradient(ellipse at top left, rgba(95,208,192,0.06), transparent 50%),
+    repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(255,255,255,0.008) 60px);
+}
+::selection{background:var(--teal-glow);color:var(--teal);}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:var(--bg-panel);}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+::-webkit-scrollbar-thumb:hover{background:var(--teal-dim);}
+
+/* ---------- top bar ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 22px;
+  background:rgba(18,22,26,0.92);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);}
+.brand .dot{width:9px;height:9px;border-radius:2px;background:var(--teal);box-shadow:0 0 8px var(--teal);animation:blink 2.2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.35;}}
+.brand-text{font-size:14px;letter-spacing:0.02em;color:var(--text);}
+.brand-text b{color:var(--teal);font-weight:600;}
+.topbar-right{display:flex;align-items:center;gap:16px;font-family:var(--mono);font-size:11px;color:var(--text-faint);}
+.menu-btn{display:none;background:none;border:1px solid var(--line);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--mono);cursor:pointer;}
+
+/* ---------- layout ---------- */
+.layout{display:grid;grid-template-columns:250px 1fr;min-height:calc(100vh - 47px);}
+.sidebar{
+  border-right:1px solid var(--line);
+  background:var(--bg-panel);
+  padding:18px 0;
+  position:sticky;top:47px;
+  height:calc(100vh - 47px);
+  overflow-y:auto;
+}
+.sidebar-label{
+  font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--text-faint);padding:6px 20px;margin-top:8px;
+}
+.schema-header{
+  font-family:var(--mono);font-size:10px;color:var(--text-faint);
+  padding:0 20px 8px 20px;display:grid;grid-template-columns:24px 1fr 44px;gap:8px;border-bottom:1px solid var(--line-soft);margin-bottom:4px;
+}
+.nav-item{
+  display:grid;grid-template-columns:24px 1fr 44px;gap:8px;align-items:center;
+  padding:8px 20px;cursor:pointer;
+  font-family:var(--mono);font-size:12.5px;color:var(--text-dim);
+  border-left:2px solid transparent;
+  transition:background 0.12s, color 0.12s;
+}
+.nav-item:hover{background:var(--bg-raised);color:var(--text);}
+.nav-item.active{background:var(--bg-raised);color:var(--teal);border-left-color:var(--teal);}
+.nav-item .pk{color:var(--text-faint);}
+.nav-item.active .pk{color:var(--teal-dim);}
+.nav-item .stat{font-size:10px;padding:1px 6px;border-radius:3px;text-align:center;background:var(--line-soft);color:var(--text-faint);}
+.nav-item.active .stat{background:var(--teal-glow);color:var(--teal);}
+
+/* ---------- main ---------- */
+main{padding:36px 44px 80px;max-width:900px;}
+.section{display:none;animation:fadein 0.25s ease;}
+.section.active{display:block;}
+@keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+.eyebrow{font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.eyebrow::before{content:'';width:16px;height:1px;background:var(--teal-dim);}
+h1.page-title{font-family:var(--mono);font-size:30px;font-weight:600;margin:0 0 6px;color:var(--text);letter-spacing:-0.01em;}
+.page-sub{color:var(--text-dim);font-size:14.5px;margin:0 0 30px;line-height:1.6;max-width:640px;}
+
+.card{
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:22px 24px;
+  margin-bottom:18px;
+}
+.card h3{
+  font-family:var(--mono);font-size:15px;color:var(--teal);margin:0 0 12px;
+  display:flex;align-items:center;gap:8px;
+}
+.card h3::before{content:'▸';color:var(--teal-dim);}
+.card p{color:var(--text-dim);line-height:1.7;font-size:14px;margin:0 0 10px;}
+.card ul{margin:8px 0;padding-left:20px;color:var(--text-dim);line-height:1.8;font-size:14px;}
+.card li{margin-bottom:4px;}
+.card li b, .card p b{color:var(--text);font-weight:600;}
+.card li::marker{color:var(--teal-dim);}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:760px){.two-col{grid-template-columns:1fr;}}
+
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:2px 8px;border-radius:4px;background:var(--line-soft);color:var(--text-dim);margin-right:6px;}
+.tag.good{background:rgba(126,201,143,0.12);color:var(--green);}
+.tag.bad{background:rgba(227,120,92,0.12);color:var(--red);}
+.tag.key{background:var(--teal-glow);color:var(--teal);}
+
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;}
+th{font-family:var(--mono);text-align:left;color:var(--teal);padding:8px 10px;border-bottom:1px solid var(--line);font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em;}
+td{padding:9px 10px;border-bottom:1px solid var(--line-soft);color:var(--text-dim);vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+td b{color:var(--text);}
+td code, p code, li code{background:var(--line-soft);color:var(--teal);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:12px;}
+
+/* mini ER table visual */
+.erd-table{border:1px solid var(--line);border-radius:8px;overflow:hidden;font-family:var(--mono);font-size:12px;min-width:180px;}
+.erd-title{background:var(--teal-glow);color:var(--teal);padding:8px 12px;font-weight:600;border-bottom:1px solid var(--line);}
+.erd-row{padding:7px 12px;border-bottom:1px solid var(--line-soft);color:var(--text-dim);display:flex;justify-content:space-between;}
+.erd-row:last-child{border-bottom:none;}
+.erd-row .pk-tag{color:var(--amber);font-size:10px;}
+.erd-row .fk-tag{color:var(--teal);font-size:10px;}
+.erd-wrap{display:flex;gap:24px;flex-wrap:wrap;margin:14px 0;}
+
+/* qa accordion */
+.qa{border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden;background:var(--bg-panel);}
+.qa summary{
+  list-style:none;cursor:pointer;padding:14px 18px;
+  font-family:var(--mono);font-size:13.5px;color:var(--text);
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+}
+.qa summary::-webkit-details-marker{display:none;}
+.qa summary::after{content:'+';color:var(--teal);font-size:18px;flex-shrink:0;transition:transform 0.15s;}
+.qa[open] summary::after{transform:rotate(45deg);}
+.qa summary:hover{background:var(--bg-raised);}
+.qa .qa-body{padding:0 18px 16px;color:var(--text-dim);font-size:13.5px;line-height:1.75;}
+.qa .qa-body b{color:var(--text);}
+.qa .diff{font-size:9.5px;padding:2px 6px;border-radius:3px;font-family:var(--mono);flex-shrink:0;}
+.diff.easy{background:rgba(126,201,143,0.12);color:var(--green);}
+.diff.med{background:rgba(227,180,92,0.12);color:var(--amber);}
+.diff.hard{background:rgba(227,120,92,0.12);color:var(--red);}
+
+pre{
+  background:#0d1114;border:1px solid var(--line);border-radius:8px;
+  padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;
+  color:#cfe0dc;line-height:1.6;
+}
+pre .cm{color:var(--text-faint);}
+pre .kw{color:var(--teal);}
+pre .str{color:var(--amber);}
+
+/* quiz */
+.quiz-progress{display:flex;gap:5px;margin-bottom:20px;}
+.quiz-progress div{flex:1;height:4px;border-radius:2px;background:var(--line-soft);}
+.quiz-progress div.done{background:var(--teal-dim);}
+.quiz-progress div.current{background:var(--teal);}
+.quiz-card{background:var(--bg-panel);border:1px solid var(--line);border-radius:10px;padding:26px 28px;}
+.quiz-meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--text-faint);margin-bottom:14px;}
+.quiz-q{font-size:16px;color:var(--text);line-height:1.6;margin-bottom:20px;}
+.quiz-opt{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 16px;margin-bottom:9px;border-radius:8px;
+  border:1px solid var(--line);cursor:pointer;font-size:14px;color:var(--text-dim);
+  transition:border-color 0.12s, background 0.12s;
+}
+.quiz-opt:hover{border-color:var(--teal-dim);background:var(--bg-raised);}
+.quiz-opt .letter{font-family:var(--mono);font-size:11px;color:var(--text-faint);border:1px solid var(--line);width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.quiz-opt.correct{border-color:var(--green);background:rgba(126,201,143,0.08);color:var(--text);}
+.quiz-opt.correct .letter{border-color:var(--green);color:var(--green);}
+.quiz-opt.wrong{border-color:var(--red);background:rgba(227,120,92,0.08);color:var(--text);}
+.quiz-opt.wrong .letter{border-color:var(--red);color:var(--red);}
+.quiz-opt.disabled{cursor:default;}
+.quiz-explain{margin-top:16px;padding:14px 16px;background:var(--bg-raised);border-radius:8px;font-size:13px;color:var(--text-dim);line-height:1.7;display:none;}
+.quiz-explain.show{display:block;}
+.quiz-nav{display:flex;justify-content:space-between;align-items:center;margin-top:20px;}
+.btn{
+  font-family:var(--mono);font-size:12.5px;background:var(--teal);color:#0a1a17;
+  border:none;padding:10px 18px;border-radius:7px;cursor:pointer;font-weight:600;
+  transition:opacity 0.12s;
+}
+.btn:hover{opacity:0.88;}
+.btn:disabled{background:var(--line);color:var(--text-faint);cursor:not-allowed;}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text-dim);}
+.btn.ghost:hover{border-color:var(--teal-dim);color:var(--text);}
+.score-box{text-align:center;padding:50px 20px;}
+.score-box .big{font-family:var(--mono);font-size:52px;color:var(--teal);font-weight:700;}
+.score-box .lbl{color:var(--text-dim);font-size:13px;margin-top:8px;}
+
+.footer-note{
+  margin-top:50px;padding-top:20px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:11px;color:var(--text-faint);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;
+}
+
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;}
+  .sidebar{position:fixed;left:0;top:47px;bottom:0;width:250px;z-index:40;transform:translateX(-100%);transition:transform 0.2s;}
+  .sidebar.open{transform:translateX(0);box-shadow:20px 0 40px rgba(0,0,0,0.4);}
+  .menu-btn{display:inline-block;}
+  main{padding:26px 18px 60px;}
+  h1.page-title{font-size:24px;}
+  .two-col{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <button class="menu-btn" id="menuBtn">☰ topics</button>
+    <div class="brand">
+      <span class="dot"></span>
+      <span class="brand-text">db<b>://</b>prep</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span>STATE: CONNECTED</span>
+    <span>SCHEMA <span id="activePid">public</span></span>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-label">// dbms_syllabus.schema</div>
+    <div class="schema-header"><span>#</span><span>TABLE</span><span>ROWS</span></div>
+
+    <div class="nav-item active" data-target="intro"><span class="pk">01</span><span>Overview</span><span class="stat">--</span></div>
+    <div class="nav-item" data-target="basics"><span class="pk">02</span><span>DBMS Basics &amp; Keys</span><span class="stat">core</span></div>
+    <div class="nav-item" data-target="er"><span class="pk">03</span><span>ER Model</span><span class="stat">core</span></div>
+    <div class="nav-item" data-target="normalization"><span class="pk">04</span><span>Normalization</span><span class="stat">core</span></div>
+    <div class="nav-item" data-target="sql"><span class="pk">05</span><span>SQL &amp; Joins</span><span class="stat">core</span></div>
+    <div class="nav-item" data-target="transactions"><span class="pk">06</span><span>Transactions &amp; ACID</span><span class="stat">core</span></div>
+    <div class="nav-item" data-target="concurrency"><span class="pk">07</span><span>Concurrency Control</span><span class="stat">core</span></div>
+    <div class="nav-item" data-target="indexing"><span class="pk">08</span><span>Indexing &amp; Storage</span><span class="stat">core</span></div>
+
+    <div class="sidebar-label">// practice</div>
+    <div class="nav-item" data-target="faq"><span class="pk">09</span><span>Interview Q&amp;A</span><span class="stat">40+</span></div>
+    <div class="nav-item" data-target="quiz"><span class="pk">10</span><span>OA Quiz Mode</span><span class="stat">MCQ</span></div>
+  </nav>
+
+  <main>
+
+    <!-- ================= INTRO ================= -->
+    <section class="section active" id="sec-intro">
+      <div class="eyebrow">SELECT * FROM syllabus</div>
+      <h1 class="page-title">DBMS — Interview &amp; OA Prep</h1>
+      <p class="page-sub">Pura DBMS syllabus ek jagah — jaise interviews aur OA (online assessments) mein poocha jaata hai. Left mein "schema" se topic choose karo. Practice ke liye <b style="color:var(--teal)">Interview Q&amp;A</b> aur <b style="color:var(--teal)">OA Quiz Mode</b> bhi hai.</p>
+
+      <div class="two-col">
+        <div class="card">
+          <h3>Kaise use karein</h3>
+          <ul>
+            <li>Order follow karo: Basics/Keys → ER Model → Normalization → SQL/Joins → Transactions → Concurrency → Indexing — yehi flow interviews mein bhi chalta hai.</li>
+            <li>Har topic mein tables, mini-ER diagrams aur query examples hain.</li>
+            <li>Last mein Quiz Mode mein khud test karo — instant explanation ke saath.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Sabse zyada poocha jaata hai</h3>
+          <ul>
+            <li><b>Normalization</b> — 1NF/2NF/3NF/BCNF numericals</li>
+            <li><b>Joins</b> — INNER vs LEFT vs RIGHT vs FULL</li>
+            <li><b>ACID properties</b> aur transaction states</li>
+            <li><b>Deadlock &amp; Concurrency control</b> — 2PL, timestamp ordering</li>
+            <li><b>Indexing</b> — clustered vs non-clustered, B+ Tree</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>System snapshot</h3>
+        <div class="erd-wrap">
+          <div class="erd-table">
+            <div class="erd-title">syllabus_core</div>
+            <div class="erd-row"><span>keys_er</span><span class="pk-tag">PK</span></div>
+            <div class="erd-row"><span>normalization</span><span></span></div>
+            <div class="erd-row"><span>sql_joins</span><span></span></div>
+          </div>
+          <div class="erd-table">
+            <div class="erd-title">syllabus_advanced</div>
+            <div class="erd-row"><span>transactions</span><span class="fk-tag">→core</span></div>
+            <div class="erd-row"><span>concurrency</span><span class="fk-tag">→core</span></div>
+            <div class="erd-row"><span>indexing</span><span class="fk-tag">→core</span></div>
+          </div>
+        </div>
+        <p style="font-size:12px;">^ jaise ek real schema mein tables relate hoti hain, waise hi ye topics ek dusre pe build hote hain — pehle core, phir advanced.</p>
+      </div>
+    </section>
+
+    <!-- ================= BASICS & KEYS ================= -->
+    <section class="section" id="sec-basics">
+      <div class="eyebrow">TABLE 02 · core</div>
+      <h1 class="page-title">DBMS Basics &amp; Keys</h1>
+      <p class="page-sub">Foundation questions — har interview yahin se shuru hota hai.</p>
+
+      <div class="card">
+        <h3>DBMS vs RDBMS</h3>
+        <table>
+          <tr><th>DBMS</th><th>RDBMS</th></tr>
+          <tr><td>Data files/folders mein store — no relation enforced</td><td>Data tables mein store, rows/columns ke saath relations</td></tr>
+          <tr><td>ACID guarantee nahi</td><td>ACID properties follow karta hai</td></tr>
+          <tr><td>No normalization concept</td><td>Normalization support karta hai</td></tr>
+          <tr><td>Example: file system, XML DB</td><td>Example: MySQL, PostgreSQL, Oracle</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Types of Keys</h3>
+        <ul>
+          <li><b>Primary Key:</b> uniquely row identify karta hai, NULL allow nahi karta</li>
+          <li><b>Candidate Key:</b> saare attributes jo primary key ban sakte hain</li>
+          <li><b>Super Key:</b> attributes ka set jo row uniquely identify kare (extra attributes ke saath bhi)</li>
+          <li><b>Foreign Key:</b> doosri table ke primary key ko reference karta hai — referential integrity maintain karta hai</li>
+          <li><b>Composite Key:</b> do ya zyada columns milke primary key banate hain</li>
+          <li><b>Alternate Key:</b> candidate keys jo primary key nahi bane</li>
+        </ul>
+        <p><b>OA gotcha:</b> "Har Super Key Candidate Key nahi hoti, but har Candidate Key Super Key hoti hai" — ye line yaad rakho.</p>
+      </div>
+
+      <div class="card">
+        <h3>Constraints</h3>
+        <div class="two-col">
+          <ul>
+            <li><code>NOT NULL</code> — column empty nahi ho sakta</li>
+            <li><code>UNIQUE</code> — duplicate values allow nahi</li>
+            <li><code>CHECK</code> — condition enforce karta hai</li>
+          </ul>
+          <ul>
+            <li><code>DEFAULT</code> — value na di jaaye toh default use ho</li>
+            <li><code>PRIMARY KEY</code> — NOT NULL + UNIQUE</li>
+            <li><code>FOREIGN KEY</code> — referential integrity</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ER MODEL ================= -->
+    <section class="section" id="sec-er">
+      <div class="eyebrow">TABLE 03 · core</div>
+      <h1 class="page-title">ER Model</h1>
+      <p class="page-sub">Entity-Relationship model real world ko entities, attributes, aur relationships mein todta hai — database design ka pehla step.</p>
+
+      <div class="card">
+        <h3>Core Components</h3>
+        <ul>
+          <li><b>Entity:</b> real-world object (e.g. Student, Course) — Entity Set uski collection</li>
+          <li><b>Attribute:</b> entity ki property (simple, composite, derived, multi-valued)</li>
+          <li><b>Relationship:</b> do entities ke beech association (e.g. Student "enrolls" Course)</li>
+          <li><b>Cardinality:</b> relationship mein participation ka count — 1:1, 1:N, M:N</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Mini ER example</h3>
+        <div class="erd-wrap">
+          <div class="erd-table">
+            <div class="erd-title">Student</div>
+            <div class="erd-row"><span>student_id</span><span class="pk-tag">PK</span></div>
+            <div class="erd-row"><span>name</span><span></span></div>
+            <div class="erd-row"><span>email</span><span></span></div>
+          </div>
+          <div class="erd-table">
+            <div class="erd-title">Enrollment</div>
+            <div class="erd-row"><span>student_id</span><span class="fk-tag">FK</span></div>
+            <div class="erd-row"><span>course_id</span><span class="fk-tag">FK</span></div>
+            <div class="erd-row"><span>grade</span><span></span></div>
+          </div>
+          <div class="erd-table">
+            <div class="erd-title">Course</div>
+            <div class="erd-row"><span>course_id</span><span class="pk-tag">PK</span></div>
+            <div class="erd-row"><span>title</span><span></span></div>
+          </div>
+        </div>
+        <p>Student aur Course ke beech M:N relationship hai — isliye Enrollment ek junction/bridge table banti hai, jisme dono ke foreign keys hote hain.</p>
+      </div>
+
+      <div class="card">
+        <h3>Weak vs Strong Entity</h3>
+        <table>
+          <tr><th>Strong Entity</th><th>Weak Entity</th></tr>
+          <tr><td>Apni khud ki primary key hoti hai</td><td>Khud ki primary key nahi — kisi strong entity pe depend karti hai</td></tr>
+          <tr><td>Example: Student</td><td>Example: Dependent (employee ke bina exist nahi karta)</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Generalization vs Specialization</h3>
+        <p><b>Generalization:</b> bottom-up — multiple entities ke common features ko combine karke ek higher-level entity banana (e.g. Car + Bike → Vehicle). <b>Specialization:</b> top-down — ek entity ko specific sub-entities mein todna (e.g. Employee → Manager, Developer).</p>
+      </div>
+    </section>
+
+    <!-- ================= NORMALIZATION ================= -->
+    <section class="section" id="sec-normalization">
+      <div class="eyebrow">TABLE 04 · core</div>
+      <h1 class="page-title">Normalization</h1>
+      <p class="page-sub">Redundancy hatane aur data integrity maintain karne ke liye tables ko structured way mein todna. OA mein "is table ka highest normal form batao" type questions bahut aate hain.</p>
+
+      <div class="card">
+        <h3>Normal Forms — step by step</h3>
+        <table>
+          <tr><th>Form</th><th>Rule</th><th>Removes</th></tr>
+          <tr><td><b>1NF</b></td><td>Har column atomic value rakhe (no multi-valued/repeating groups)</td><td>Non-atomic values</td></tr>
+          <tr><td><b>2NF</b></td><td>1NF + no partial dependency (non-key attribute pura primary key pe depend kare, part pe nahi)</td><td>Partial dependency</td></tr>
+          <tr><td><b>3NF</b></td><td>2NF + no transitive dependency (non-key attribute kisi doosre non-key pe depend na kare)</td><td>Transitive dependency</td></tr>
+          <tr><td><b>BCNF</b></td><td>Har determinant candidate key ho (3NF ka strict version)</td><td>Remaining anomalies jo 3NF miss kar deta hai</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Functional Dependency — quick recall</h3>
+        <p><code>A → B</code> ka matlab: A ki value se B ki value uniquely determine ho jaati hai. Example: <code>student_id → student_name</code>.</p>
+        <p><b>Partial Dependency:</b> non-key attribute composite key ke sirf ek part pe depend kare. <b>Transitive Dependency:</b> A→B aur B→C ho, toh A→C transitive hai (agar B key nahi hai).</p>
+      </div>
+
+      <div class="card">
+        <h3>Denormalization</h3>
+        <p>Jaanbujh kar redundancy add karna — reads fast karne ke liye, joins kam karne ke liye. Trade-off: write anomalies aur storage badh sakta hai. Read-heavy systems (reporting, analytics) mein common hai.</p>
+      </div>
+    </section>
+
+    <!-- ================= SQL & JOINS ================= -->
+    <section class="section" id="sec-sql">
+      <div class="eyebrow">TABLE 05 · core</div>
+      <h1 class="page-title">SQL &amp; Joins</h1>
+      <p class="page-sub">Query-writing questions OA mein directly aate hain — joins, aggregation, aur subqueries pe strong pakad zaroori hai.</p>
+
+      <div class="card">
+        <h3>Joins compared</h3>
+        <table>
+          <tr><th>Join</th><th>Returns</th></tr>
+          <tr><td><b>INNER JOIN</b></td><td>Sirf matching rows dono tables mein</td></tr>
+          <tr><td><b>LEFT JOIN</b></td><td>Left table ki saari rows + matching right rows (na mile toh NULL)</td></tr>
+          <tr><td><b>RIGHT JOIN</b></td><td>Right table ki saari rows + matching left rows</td></tr>
+          <tr><td><b>FULL OUTER JOIN</b></td><td>Dono tables ki saari rows, unmatched pe NULL</td></tr>
+          <tr><td><b>SELF JOIN</b></td><td>Table apne aap se join (e.g. employee-manager hierarchy)</td></tr>
+          <tr><td><b>CROSS JOIN</b></td><td>Cartesian product — har row har row se pair</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>WHERE vs HAVING — classic gotcha</h3>
+        <pre><span class="kw">SELECT</span> dept, <span class="kw">COUNT</span>(*) <span class="kw">as</span> emp_count
+<span class="kw">FROM</span> employees
+<span class="kw">WHERE</span> salary &gt; <span class="str">50000</span>      <span class="cm">-- row-level filter, GROUP BY se pehle</span>
+<span class="kw">GROUP BY</span> dept
+<span class="kw">HAVING</span> <span class="kw">COUNT</span>(*) &gt; <span class="str">5</span>   <span class="cm">-- group-level filter, GROUP BY ke baad</span>;</pre>
+        <p><b>WHERE</b> individual rows filter karta hai grouping se pehle. <b>HAVING</b> groups ko filter karta hai aggregate function ke result pe — WHERE mein aggregate function use nahi kar sakte.</p>
+      </div>
+
+      <div class="card">
+        <h3>Common Query Patterns</h3>
+        <pre><span class="cm">-- 2nd highest salary</span>
+<span class="kw">SELECT</span> <span class="kw">MAX</span>(salary) <span class="kw">FROM</span> employees
+<span class="kw">WHERE</span> salary &lt; (<span class="kw">SELECT</span> <span class="kw">MAX</span>(salary) <span class="kw">FROM</span> employees);
+
+<span class="cm">-- duplicate rows dhoondhna</span>
+<span class="kw">SELECT</span> email, <span class="kw">COUNT</span>(*)
+<span class="kw">FROM</span> users
+<span class="kw">GROUP BY</span> email
+<span class="kw">HAVING</span> <span class="kw">COUNT</span>(*) &gt; <span class="str">1</span>;</pre>
+      </div>
+
+      <div class="card">
+        <h3>DDL vs DML vs DCL vs TCL</h3>
+        <table>
+          <tr><th>Category</th><th>Commands</th><th>Purpose</th></tr>
+          <tr><td><b>DDL</b></td><td>CREATE, ALTER, DROP, TRUNCATE</td><td>Schema/structure define karna</td></tr>
+          <tr><td><b>DML</b></td><td>SELECT, INSERT, UPDATE, DELETE</td><td>Data manipulate karna</td></tr>
+          <tr><td><b>DCL</b></td><td>GRANT, REVOKE</td><td>Permissions control karna</td></tr>
+          <tr><td><b>TCL</b></td><td>COMMIT, ROLLBACK, SAVEPOINT</td><td>Transactions manage karna</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= TRANSACTIONS & ACID ================= -->
+    <section class="section" id="sec-transactions">
+      <div class="eyebrow">TABLE 06 · core</div>
+      <h1 class="page-title">Transactions &amp; ACID</h1>
+      <p class="page-sub">Transaction ek logical unit of work hai — poori ki poori execute hogi ya bilkul nahi.</p>
+
+      <div class="card">
+        <h3>ACID Properties</h3>
+        <ul>
+          <li><b>Atomicity:</b> transaction ke saare operations ek unit hain — sab ya kuch nahi (all-or-nothing)</li>
+          <li><b>Consistency:</b> transaction database ko ek valid state se doosri valid state mein le jaaye</li>
+          <li><b>Isolation:</b> concurrent transactions ek dusre ko interfere na karein, jaise sequentially chal rahe hon</li>
+          <li><b>Durability:</b> commit hone ke baad changes permanent hain, chahe system crash ho jaaye</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Transaction States</h3>
+        <p>Active → Partially Committed → Committed, ya kisi bhi point pe Failed → Aborted. Active se failure hone pe seedha Failed state mein jaate hain, jahan se Aborted (rollback) hota hai.</p>
+      </div>
+
+      <div class="card">
+        <h3>Isolation Levels (weakest → strongest)</h3>
+        <table>
+          <tr><th>Level</th><th>Allows</th></tr>
+          <tr><td><b>Read Uncommitted</b></td><td>Dirty reads possible</td></tr>
+          <tr><td><b>Read Committed</b></td><td>Dirty read prevent, but non-repeatable read possible</td></tr>
+          <tr><td><b>Repeatable Read</b></td><td>Non-repeatable read prevent, but phantom read possible</td></tr>
+          <tr><td><b>Serializable</b></td><td>Sab anomalies prevent — sabse strict, sabse slow</td></tr>
+        </table>
+        <p><b>Dirty Read:</b> uncommitted data padh lena. <b>Non-repeatable Read:</b> same row do baar padhne pe different value. <b>Phantom Read:</b> same query dobara chalane pe naye rows dikhna.</p>
+      </div>
+    </section>
+
+    <!-- ================= CONCURRENCY ================= -->
+    <section class="section" id="sec-concurrency">
+      <div class="eyebrow">TABLE 07 · core</div>
+      <h1 class="page-title">Concurrency Control</h1>
+      <p class="page-sub">Multiple transactions ek saath chalte hain — data consistency banaye rakhne ke liye control mechanisms chahiye.</p>
+
+      <div class="card">
+        <h3>Lock-Based Protocols</h3>
+        <ul>
+          <li><b>Shared Lock (S):</b> read ke liye — multiple transactions ek saath le sakte hain</li>
+          <li><b>Exclusive Lock (X):</b> write ke liye — sirf ek transaction hold kar sakta hai</li>
+          <li><b>Two-Phase Locking (2PL):</b> Growing phase (locks acquire) + Shrinking phase (locks release) — koi bhi lock release hone ke baad naya lock acquire nahi kar sakte. Serializability guarantee karta hai.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Deadlock in DBMS</h3>
+        <p>Do transactions ek dusre ke lock release hone ka wait karte reh jaate hain — OS deadlock jaisa hi concept. Handle karne ke tareeke: <b>timeout-based detection</b>, aur <b>wait-for graph</b> se cycle detect karke ek transaction ko abort (rollback) karna.</p>
+      </div>
+
+      <div class="card">
+        <h3>Other Concurrency Techniques</h3>
+        <ul>
+          <li><b>Timestamp Ordering:</b> har transaction ko unique timestamp milta hai, usi order mein execute hone deta hai</li>
+          <li><b>Optimistic Concurrency Control:</b> assume karo conflict nahi hoga — commit time pe validate karo</li>
+          <li><b>Multiversion Concurrency Control (MVCC):</b> data ke multiple versions rakhta hai — readers writers ko block nahi karte (PostgreSQL, MySQL InnoDB use karte hain)</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================= INDEXING ================= -->
+    <section class="section" id="sec-indexing">
+      <div class="eyebrow">TABLE 08 · core</div>
+      <h1 class="page-title">Indexing &amp; Storage</h1>
+      <p class="page-sub">Index query performance drastically improve karta hai — but write operations ko slow kar sakta hai. Trade-off samajhna important hai.</p>
+
+      <div class="card">
+        <h3>Clustered vs Non-Clustered Index</h3>
+        <table>
+          <tr><th>Clustered</th><th>Non-Clustered</th></tr>
+          <tr><td>Actual data rows ko physically sort/store karta hai index order mein</td><td>Separate structure — pointer rakhta hai actual row tak</td></tr>
+          <tr><td>Table mein sirf <b>ek</b> ho sakta hai</td><td>Table mein <b>multiple</b> ho sakte hain</td></tr>
+          <tr><td>Usually primary key pe automatically</td><td>Manually create karte hain frequently-queried columns pe</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>B+ Tree — why databases use it</h3>
+        <p>Balanced tree hai jahan saara actual data leaf nodes mein hota hai, aur leaf nodes linked list ki tarah connected hote hain — isse range queries fast hoti hain. Internal nodes sirf navigation ke liye hote hain (keys, no data), isliye ek node mein zyada keys fit hoti hain → tree ki height kam → disk I/O kam.</p>
+      </div>
+
+      <div class="card">
+        <h3>Kab index use karo, kab nahi</h3>
+        <div class="two-col">
+          <div>
+            <p><span class="tag good">Use karo jab</span></p>
+            <ul style="font-size:13px;">
+              <li>Column frequently WHERE/JOIN mein use hota ho</li>
+              <li>High cardinality (many unique values)</li>
+              <li>Read-heavy tables</li>
+            </ul>
+          </div>
+          <div>
+            <p><span class="tag bad">Avoid karo jab</span></p>
+            <ul style="font-size:13px;">
+              <li>Table chhoti hai (full scan hi fast)</li>
+              <li>Write-heavy table (index update overhead)</li>
+              <li>Low cardinality column (e.g. boolean)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FAQ ================= -->
+    <section class="section" id="sec-faq">
+      <div class="eyebrow">TABLE 09 · practice</div>
+      <h1 class="page-title">Interview Q&amp;A Bank</h1>
+      <p class="page-sub">Click karke answer expand karo. In questions ko apne alfaz mein bolne ki practice karo.</p>
+      <div id="faqList"></div>
+    </section>
+
+    <!-- ================= QUIZ ================= -->
+    <section class="section" id="sec-quiz">
+      <div class="eyebrow">TABLE 10 · practice</div>
+      <h1 class="page-title">OA Quiz Mode</h1>
+      <p class="page-sub">MCQ format — bilkul OA jaisa. Answer choose karo, turant explanation milega.</p>
+      <div id="quizArea"></div>
+    </section>
+
+    <div class="footer-note">
+      <span>db://prep — built for revision, not memorization</span>
+      <span id="clockFooter"></span>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ---------- navigation ---------- */
+const navItems = document.querySelectorAll('.nav-item');
+const sections = document.querySelectorAll('.section');
+const activePidLbl = document.getElementById('activePid');
+navItems.forEach(item=>{
+  item.addEventListener('click', ()=>{
+    navItems.forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    const target = item.dataset.target;
+    sections.forEach(s=>s.classList.remove('active'));
+    document.getElementById('sec-'+target).classList.add('active');
+    activePidLbl.textContent = target;
+    document.getElementById('sidebar').classList.remove('open');
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+});
+document.getElementById('menuBtn').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+/* ---------- footer clock ---------- */
+function tick(){
+  const d = new Date();
+  document.getElementById('clockFooter').textContent = 'local_time :: ' + d.toLocaleTimeString();
+}
+tick(); setInterval(tick,1000);
+
+/* ---------- FAQ data ---------- */
+const faqData = [
+  {q:"Primary Key aur Unique Key mein fark?", d:"easy", a:"Primary Key NULL allow nahi karta aur table mein sirf ek hota hai. Unique Key ek NULL value allow kar sakta hai aur table mein multiple unique keys ho sakti hain. Dono duplicate values prevent karte hain."},
+  {q:"3NF aur BCNF mein kya fark hai?", d:"hard", a:"3NF mein transitive dependency nahi honi chahiye. BCNF isse strict hai — har functional dependency A→B mein A must candidate key ho. Kabhi-kabhi table 3NF mein hoti hai but BCNF mein nahi, jab non-key attribute se koi part of composite candidate key determine hota ho."},
+  {q:"Dirty Read kya hai?", d:"med", a:"Jab ek transaction doosre transaction ka uncommitted data padh leta hai. Agar wo doosra transaction rollback ho jaaye, toh pehle transaction ne galat (dirty) data padha hota hai. Read Uncommitted isolation level mein ye ho sakta hai."},
+  {q:"Clustered aur Non-Clustered index mein fark?", d:"med", a:"Clustered index actual data rows ko index ke order mein physically arrange karta hai — table mein sirf ek clustered index ho sakta hai (usually primary key pe). Non-clustered index ek separate structure hai jo actual row ka pointer rakhta hai — multiple ho sakte hain."},
+  {q:"2 Phase Locking (2PL) kya guarantee karta hai?", d:"hard", a:"2PL serializability guarantee karta hai. Growing phase mein transaction locks acquire karta hai, shrinking phase mein release karta hai — ek baar release shuru hone ke baad naya lock nahi le sakta. Ye conflict serializable schedules ensure karta hai, lekin deadlock ho sakta hai."},
+  {q:"WHERE clause mein aggregate function use kyun nahi kar sakte?", d:"med", a:"Kyunki WHERE clause GROUP BY se pehle execute hoti hai (row-level filtering), aur aggregate functions (COUNT, SUM, AVG) grouped data pe kaam karte hain jo abhi bana hi nahi. Isliye aggregate filter ke liye HAVING use karte hain, jo GROUP BY ke baad chalta hai."},
+  {q:"Normalization vs Denormalization — kab kya use karein?", d:"med", a:"Normalization redundancy kam karta hai, data integrity better hoti hai — OLTP (transactional) systems ke liye achha. Denormalization jaanbujh kar redundancy add karta hai reads fast karne ke liye — OLAP/reporting/analytics systems mein common hai jahan reads writes se zyada hote hain."},
+  {q:"Foreign Key kya enforce karta hai?", d:"easy", a:"Referential Integrity — ye ensure karta hai ki child table mein jo value hai wo parent table mein exist kare. Isse orphan records (jinka parent hi nahi hai) create hone se rukte hain."},
+  {q:"MVCC (Multiversion Concurrency Control) kaise kaam karta hai?", d:"hard", a:"Har write pe data ka naya version create hota hai purane ko overwrite karne ki jagah. Readers hamesha ek consistent snapshot dekhte hain bina writers ko block kiye, aur writers readers ko block nahi karte. PostgreSQL aur MySQL InnoDB isi se high concurrency deते hain."},
+  {q:"Self Join kab use karte hain, example do.", d:"med", a:"Jab table ke andar hi kisi hierarchical ya self-referencing relationship ko query karna ho — jaise employee table mein 'manager_id' field ho aur har employee ka manager naam nikalna ho. Table ko khud se do alias ke saath join karte hain."},
+  {q:"Phantom Read aur Non-Repeatable Read mein fark?", d:"hard", a:"Non-Repeatable Read: same row ko do baar padhne pe uski value change mil jaati hai (kyunki koi doosra transaction update kar gaya). Phantom Read: same query dobara chalane pe naye rows dikhte hain (kyunki koi doosra transaction INSERT kar gaya) — row-level nahi, result-set-level difference hai."},
+  {q:"Composite Key kya hoti hai?", d:"easy", a:"Do ya zyada columns ko milakar bani primary key, jab akela koi column uniquely row identify nahi kar sakta. Example: Enrollment table mein (student_id, course_id) milkar composite primary key ban sakte hain."},
+];
+
+const faqList = document.getElementById('faqList');
+faqData.forEach(item=>{
+  const el = document.createElement('details');
+  el.className = 'qa';
+  el.innerHTML = `<summary><span>${item.q}</span><span class="diff ${item.d}">${item.d.toUpperCase()}</span></summary>
+    <div class="qa-body">${item.a}</div>`;
+  faqList.appendChild(el);
+});
+
+/* ---------- quiz data ---------- */
+const quizData = [
+  {q:"Ek table 2NF mein hai but 3NF mein nahi — iska matlab table mein kya problem hai?", opts:["Partial dependency hai","Transitive dependency hai","Non-atomic values hain","Composite key nahi hai"], correct:1, exp:"2NF se 3NF jaane ke liye transitive dependency remove karni padti hai — non-key attribute kisi doosre non-key attribute pe depend nahi karna chahiye."},
+  {q:"Kaunsa isolation level phantom reads bhi prevent karta hai?", opts:["Read Uncommitted","Read Committed","Repeatable Read","Serializable"], correct:3, exp:"Serializable sabse strict isolation level hai — dirty read, non-repeatable read, aur phantom read teeno prevent karta hai. Baaki levels mein se koi na koi anomaly possible rehti hai."},
+  {q:"Table mein multiple non-clustered index ho sakte hain, but clustered index kitne?", opts:["0","1","2","Jitne chahiye"], correct:1, exp:"Ek table mein sirf ek clustered index ho sakta hai kyunki wo actual data rows ko physically ek hi order mein arrange karta hai. Non-clustered indexes multiple ho sakte hain."},
+  {q:"'A → B' functional dependency ka matlab kya hai?", opts:["A, B se bada hai","B ki value A determine karti hai","A ki value B ko uniquely determine karti hai","A aur B unrelated hain"], correct:2, exp:"A → B ka matlab hai A (determinant) ki value se B ki value uniquely nikal aati hai. Example: employee_id → employee_name."},
+  {q:"2 Phase Locking mein 'shrinking phase' ka kya matlab hai?", opts:["Naye locks acquire kiye ja rahe hain","Locks release ho rahe hain, naya lock nahi le sakte","Transaction abort ho raha hai","Deadlock detect ho raha hai"], correct:1, exp:"Shrinking phase mein transaction sirf locks release kar sakta hai — ek baar release shuru hone ke baad koi naya lock acquire nahi kar sakta. Growing phase iska opposite hai."},
+  {q:"WHERE aur HAVING mein main difference kya hai?", opts:["WHERE grouped data filter karta hai, HAVING rows filter karta hai","WHERE rows filter karta hai (GROUP BY se pehle), HAVING groups filter karta hai (GROUP BY ke baad)","Dono same hain","WHERE sirf SELECT ke saath, HAVING sirf UPDATE ke saath"], correct:1, exp:"WHERE row-level filtering karta hai grouping se pehle. HAVING group-level filtering karta hai aggregate functions ke result par, GROUP BY ke baad execute hota hai."},
+  {q:"Ek employee table mein manager ka naam nikalne ke liye kaunsa join use hoga (agar manager_id usi table mein column hai)?", opts:["Cross Join","Self Join","Full Outer Join","Natural Join"], correct:1, exp:"Self Join tab use hota hai jab table ko khud se join karna ho — is case mein employee table ko do alias ke saath join karke manager_id ko dobara employee_id se match karte hain."},
+  {q:"ACID mein 'Durability' kya guarantee karta hai?", opts:["Transaction poori chalegi ya bilkul nahi","Concurrent transactions ek dusre ko affect nahi karenge","Commit ke baad changes crash mein bhi safe rahenge","Database valid state mein rahega"], correct:2, exp:"Durability guarantee karta hai ki ek baar transaction commit ho jaaye, uske changes permanent hain — chahe system crash ho jaaye, data disk pe safely persist ho chuka hota hai."},
+  {q:"Composite key kis situation mein use hoti hai?", opts:["Jab table mein koi column unique na ho par columns milke unique ho jaayein","Jab primary key NULL allow karni ho","Jab table mein foreign key na chahiye ho","Jab index nahi banani ho"], correct:0, exp:"Composite key tab banate hain jab akela koi single column row ko uniquely identify nahi kar sakta, par do-teen columns milkar uniquely identify kar dete hain — jaise junction tables mein."},
+  {q:"B+ Tree indexes range queries (BETWEEN, >, <) mein fast kyun hote hain?", opts:["Kyunki data random order mein store hota hai","Kyunki leaf nodes ek linked list ki tarah connected hote hain","Kyunki B+ Tree mein hashing use hoti hai","Kyunki B+ Tree ka height hamesha 1 hota hai"], correct:1, exp:"B+ Tree ke leaf nodes sequentially linked hote hain, isliye ek baar starting point mil jaaye toh range ke saare values sequential traversal se fast mil jaate hain — disk seeks kam lagte hain."},
+];
+
+let qi = 0, score = 0;
+const quizArea = document.getElementById('quizArea');
+
+function renderQuiz(){
+  const item = quizData[qi];
+  let progressHtml = '<div class="quiz-progress">';
+  quizData.forEach((_,idx)=>{
+    let cls = idx < qi ? 'done' : (idx===qi ? 'current' : '');
+    progressHtml += `<div class="${cls}"></div>`;
+  });
+  progressHtml += '</div>';
+
+  let optsHtml = '';
+  item.opts.forEach((opt,idx)=>{
+    optsHtml += `<div class="quiz-opt" data-idx="${idx}"><span class="letter">${String.fromCharCode(65+idx)}</span><span>${opt}</span></div>`;
+  });
+
+  quizArea.innerHTML = `
+    ${progressHtml}
+    <div class="quiz-card">
+      <div class="quiz-meta"><span>Question ${qi+1} / ${quizData.length}</span><span>Score: ${score}</span></div>
+      <div class="quiz-q">${item.q}</div>
+      <div id="optsWrap">${optsHtml}</div>
+      <div class="quiz-explain" id="explainBox">${item.exp}</div>
+      <div class="quiz-nav">
+        <button class="btn ghost" id="restartBtn">Restart</button>
+        <button class="btn" id="nextBtn" disabled>${qi === quizData.length-1 ? 'Finish' : 'Next →'}</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('restartBtn').onclick = ()=>{ qi=0; score=0; renderQuiz(); };
+
+  document.querySelectorAll('.quiz-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      if(opt.classList.contains('locked')) return;
+      const idx = parseInt(opt.dataset.idx);
+      document.querySelectorAll('.quiz-opt').forEach(o=>{
+        o.classList.add('disabled','locked');
+        const oi = parseInt(o.dataset.idx);
+        if(oi === item.correct) o.classList.add('correct');
+        else if(oi === idx && idx !== item.correct) o.classList.add('wrong');
+      });
+      if(idx === item.correct) score++;
+      document.getElementById('explainBox').classList.add('show');
+      document.getElementById('nextBtn').disabled = false;
+      document.querySelector('.quiz-meta span:last-child').textContent = 'Score: ' + score;
+    });
+  });
+
+  document.getElementById('nextBtn').onclick = ()=>{
+    if(qi === quizData.length-1){
+      renderScore();
+    } else {
+      qi++;
+      renderQuiz();
+    }
+  };
+}
+
+function renderScore(){
+  const pct = Math.round((score/quizData.length)*100);
+  quizArea.innerHTML = `
+    <div class="quiz-card score-box">
+      <div class="big">${score}/${quizData.length}</div>
+      <div class="lbl">${pct}% correct — ${pct>=80?'Ready for OA! 🔥':pct>=50?'Achha hai, thoda revise karo':'Core topics dobara padho'}</div>
+      <button class="btn" style="margin-top:24px;" id="retryBtn">Try Again</button>
+    </div>
+  `;
+  document.getElementById('retryBtn').onclick = ()=>{ qi=0; score=0; renderQuiz(); };
+}
+
+renderQuiz();
+</script>
+</body>
+</html>
